@@ -107,6 +107,21 @@ struct TaskRow: View {
                 .help("알림 \(remindAt.dgeShortText) \(remindAt.dgeTimeText)")
             }
 
+            if !task.attachments.isEmpty {
+                HStack(spacing: 3) {
+                    Image(systemName: "photo")
+                        .font(.dge(size: 10, weight: .medium))
+                    if task.attachments.count > 1 {
+                        Text("\(task.attachments.count)")
+                            .font(DGE.Typography.meta)
+                            .monospacedDigit()
+                    }
+                }
+                .foregroundStyle(DGE.Palette.tertiaryText)
+                .fixedSize()
+                .help("사진 \(task.attachments.count)장")
+            }
+
             if hasNotes {
                 Image(systemName: "text.alignleft")
                     .font(.dge(size: 10.5, weight: .medium))

@@ -330,7 +330,6 @@ struct TaskListScreen: View {
         switch item {
         case .today: "오늘"
         case .upcoming: task.dueDate?.dgeDayTitle ?? "예정"
-        case .inbox: "수신함"
         case .completed: "완료"
         case .calendar: "캘린더"
         case .list(let id): lists.first { $0.id == id }?.name ?? "목록"

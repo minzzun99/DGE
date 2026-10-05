@@ -352,7 +352,7 @@ private struct ShortcutSettings: View {
         ("새 할 일", "⌘N"),
         ("검색 · 명령", "⌘K"),
         ("빠른 입력 창", "⇧⌘N"),
-        ("수신함 · 오늘 · 예정 · 캘린더 · 완료 · 메모", "⌘1 – ⌘6"),
+        ("할 일 목록 · 오늘 · 예정 · 캘린더 · 완료 · 메모", "⌘1 – ⌘6"),
         ("완료 / 완료 취소", "⌘↩"),
         ("오늘로", "⌘T"),
         ("내일로 미루기", "⇧⌘T"),
@@ -416,16 +416,16 @@ private struct DataSettings: View {
             }
 
             Section {
-                LabeledContent("백업 파일로 내보내기") {
+                LabeledContent("백업 폴더로 내보내기") {
                     Button("내보내기…", action: exportBackup)
                 }
-                LabeledContent("백업 파일 가져오기") {
+                LabeledContent("백업 가져오기") {
                     Button("가져오기…", action: importBackup)
                 }
             } header: {
                 Text("백업")
             } footer: {
-                Text("가져오기는 지금 있는 것은 그대로 두고, 없는 것만 더합니다.")
+                Text("백업은 내용(backup.json)과 사진(attachments 폴더)을 폴더 하나에 담습니다. 가져오기는 지금 있는 것은 그대로 두고, 없는 것만 더합니다.")
                     .foregroundStyle(.secondary)
             }
 
@@ -463,12 +463,12 @@ private struct DataSettings: View {
 
     private func exportBackup() {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "DGE 백업 \(Date().formatted(.iso8601.year().month().day())).json"
+        panel.nameFieldStringValue = "DGE 백업 \(Date().formatted(.iso8601.year().month().day()))"
+        panel.message = "할 일 · 일정 · 메모와 사진을 폴더 하나에 담습니다."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try BackupService(context: context).export().write(to: url, options: .atomic)
-            message = "\(url.lastPathComponent)에 저장했습니다."
+            let photos = try BackupService(context: context).export(to: url)
+            message = "\(url.lastPathComponent) 폴더에 저장했습니다." + (photos > 0 ? " (사진 \(photos)장)" : "")
         } catch {
             message = "내보내지 못했습니다: \(error.localizedDescription)"
         }
@@ -476,14 +476,16 @@ private struct DataSettings: View {
 
     private func importBackup() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
+        panel.allowedContentTypes = [.folder, .json]
+        panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
+        panel.message = "백업 폴더나 예전 .json 백업 파일을 고르세요."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let result = try BackupService(context: context).merge(Data(contentsOf: url))
+            let result = try BackupService(context: context).merge(contentsOf: url)
             message = "할 일 \(result.tasks)개, 일정 \(result.events)개, 메모 \(result.notes)개, 목록 \(result.lists)개를 더했습니다."
         } catch {
-            message = "가져오지 못했습니다. DGE 백업 파일인지 확인해 주세요."
+            message = "가져오지 못했습니다. DGE 백업 폴더나 파일인지 확인해 주세요."
         }
     }
 }

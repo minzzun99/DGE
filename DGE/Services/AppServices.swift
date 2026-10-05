@@ -32,6 +32,8 @@ final class AppServices {
 
     func start() {
         applySettings()
+        // 지난번에 지운 할 일 · 뺀 사진의 파일. 실행 취소할 일이 없어진 지금 정리한다.
+        TaskStore(context: container.mainContext).removeUnusedAttachments()
 
         notifications.configure()
         notifications.onOpenTask = { [weak self] id in self?.openTask(id) }

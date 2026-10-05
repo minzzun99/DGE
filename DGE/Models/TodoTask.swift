@@ -33,6 +33,8 @@ final class TodoTask {
     var repeatRuleRaw: String?
     /// 알림을 줄 시각. nil이면 알리지 않는다.
     var remindAt: Date?
+    /// 붙인 사진의 파일 이름. 사진 자체는 `AttachmentStore` 폴더에 일반 파일로 둔다.
+    var attachments: [String] = []
 
     init(
         title: String,
@@ -92,11 +94,6 @@ extension TodoTask {
     var isDueToday: Bool {
         guard let dueDate else { return false }
         return Calendar.current.startOfDay(for: dueDate) <= Date.startOfToday
-    }
-
-    /// 아직 언제 할지 정하지 않은 할 일.
-    var isInbox: Bool {
-        dueDate == nil
     }
 
     var isOverdue: Bool {

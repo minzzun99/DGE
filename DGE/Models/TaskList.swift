@@ -16,6 +16,14 @@ final class TaskList {
 }
 
 extension TaskList {
+    /// 날짜도 목록도 정하지 않은 할 일이 들어가는 '할 일' 목록.
+    /// ⌘1 · 시작 화면 · 백업 어디서나 같은 목록을 가리키도록 id를 고정한다.
+    static let defaultID = UUID(uuidString: "D6E00000-0000-4000-8000-000000000001")!
+    static let defaultListName = "할 일"
+
+    /// 지울 수 없는 기본 목록인지. 이름은 바꿀 수 있다.
+    var isDefault: Bool { id == Self.defaultID }
+
     /// 첫 실행 때 넣어두는 기본 목록.
     static let defaultNames = ["개인", "업무", "공부"]
 

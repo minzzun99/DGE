@@ -23,7 +23,6 @@ struct Sidebar: View {
     var body: some View {
         List(selection: $selection) {
             Section {
-                item(.inbox, title: "수신함", icon: "tray", count: inboxCount)
                 item(.today, title: "오늘", icon: "sun.max", count: todayCount)
                 item(.upcoming, title: "예정", icon: "calendar.badge.clock", count: upcomingCount)
                 item(.calendar, title: "캘린더", icon: "calendar")
@@ -76,7 +75,7 @@ struct Sidebar: View {
                 listPendingDeletion = nil
             }
         } message: {
-            Text("안에 있는 할 일 \(listPendingDeletion.map(openCount(in:)) ?? 0)개는 지우지 않고 목록에서만 뺍니다.")
+            Text("안에 있는 할 일 \(listPendingDeletion.map(openCount(in:)) ?? 0)개는 지우지 않습니다. 날짜가 없는 할 일은 ‘할 일’ 목록으로 옮깁니다.")
         }
     }
 
@@ -157,8 +156,11 @@ struct Sidebar: View {
         .tag(SidebarItem.list(list.id))
         .contextMenu {
             Button("이름 바꾸기") { startRename(list) }
-            Divider()
-            Button("목록 지우기…", role: .destructive) { listPendingDeletion = list }
+            // '할 일' 목록은 날짜 없는 할 일이 갈 곳이라 지우지 않는다.
+            if !list.isDefault {
+                Divider()
+                Button("목록 지우기…", role: .destructive) { listPendingDeletion = list }
+            }
         }
     }
 
@@ -189,10 +191,6 @@ struct Sidebar: View {
     }
 
     // MARK: - 개수
-
-    private var inboxCount: Int {
-        tasks.filter { !$0.isCompleted && $0.isInbox && $0.listID == nil }.count
-    }
 
     private var todayCount: Int {
         tasks.filter { !$0.isCompleted && $0.isDueToday }.count

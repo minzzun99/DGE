@@ -21,6 +21,7 @@ struct TaskStore {
             order: nextOrder()
         )
         context.insert(task)
+        placeIfNeeded(task)
         save()
         return task
     }
@@ -65,6 +66,20 @@ struct TaskStore {
         save()
     }
 
+    /// 끝낸 날을 바꾼다. 체크를 늦게 눌러 '오늘'로 남은 기록을 실제로 한 날로 돌려놓을 때 쓴다.
+    /// 시각은 원래 체크한 시각을 유지하고, 앞으로의 시각이 되면 지금으로 맞춘다.
+    func setCompletedDate(_ task: TodoTask, _ day: Date) {
+        guard task.isCompleted else { return }
+        let calendar = Calendar.current
+        let time = calendar.dateComponents([.hour, .minute, .second], from: task.completedAt ?? Date())
+        let date = calendar.date(
+            bySettingHour: time.hour ?? 12, minute: time.minute ?? 0, second: time.second ?? 0,
+            of: calendar.startOfDay(for: day)
+        ) ?? day
+        task.completedAt = min(date, Date())
+        save()
+    }
+
     /// 반복하는 할 일을 끝내면 다음 차례를 새로 만든다.
     /// 끝낸 것은 기록으로 남기고, 반복은 새 할 일이 이어받는다.
     private func scheduleNext(after task: TodoTask, rule: RepeatRule) {
@@ -89,6 +104,8 @@ struct TaskStore {
         copy.tags = task.tags
         copy.checklist = task.checklist.map { ChecklistItem(title: $0.title) }
         copy.repeatRule = rule
+        // 사진은 파일 이름만 이어받는다. 같은 파일을 함께 가리킨다.
+        copy.attachments = task.attachments
         if let remindAt = task.remindAt {
             // 알림은 같은 시각, 새 날짜로.
             let time = calendar.dateComponents([.hour, .minute], from: remindAt)
@@ -111,10 +128,11 @@ struct TaskStore {
             task.remindAt = calendar.date(bySettingHour: time.hour ?? 9, minute: time.minute ?? 0, second: 0, of: newDate)
         }
         task.dueDate = newDate
+        placeIfNeeded(task)
         save()
     }
 
-    /// 수신함이나 목록에 있던 할 일, 기한이 지난 할 일을 오늘로 가져온다.
+    /// 목록에만 있던 할 일, 기한이 지난 할 일을 오늘로 가져온다.
     func moveToToday(_ task: TodoTask) {
         setDueDate(task, Date.startOfToday)
     }
@@ -141,7 +159,14 @@ struct TaskStore {
 
     func setList(_ task: TodoTask, _ listID: UUID?) {
         task.listID = listID
+        placeIfNeeded(task)
         save()
+    }
+
+    /// 날짜도 목록도 없으면 어느 화면에도 보이지 않으니 '할 일' 목록에 넣는다.
+    private func placeIfNeeded(_ task: TodoTask) {
+        guard task.dueDate == nil, task.listID == nil else { return }
+        task.listID = ListStore(context: context).defaultList().id
     }
 
     func addTag(_ task: TodoTask, _ tag: String) {
@@ -155,6 +180,27 @@ struct TaskStore {
     func removeTag(_ task: TodoTask, _ tag: String) {
         task.tags.removeAll { $0 == tag }
         save()
+    }
+
+    // MARK: - 사진
+
+    func addAttachments(_ task: TodoTask, _ names: [String]) {
+        guard !names.isEmpty else { return }
+        task.attachments.append(contentsOf: names)
+        save()
+    }
+
+    /// 할 일에서만 뺀다. 파일은 다음 실행 때 `AttachmentStore.removeUnused`가 정리한다.
+    func removeAttachment(_ task: TodoTask, _ name: String) {
+        task.attachments.removeAll { $0 == name }
+        save()
+    }
+
+    /// 어떤 할 일도 가리키지 않는 사진 파일을 지운다.
+    /// 할 일을 읽지 못했을 때는 모두 쓰지 않는 것으로 오해할 수 있으니 아무것도 지우지 않는다.
+    func removeUnusedAttachments() {
+        guard let tasks = try? context.fetch(FetchDescriptor<TodoTask>()) else { return }
+        AttachmentStore.removeUnused(keeping: Set(tasks.flatMap(\.attachments)))
     }
 
     // MARK: - 지우기
@@ -174,7 +220,11 @@ struct TaskStore {
     }
 
     func restore(_ snapshots: [TaskSnapshot]) {
-        snapshots.forEach { context.insert($0.makeTask()) }
+        for snapshot in snapshots {
+            let task = snapshot.makeTask()
+            context.insert(task)
+            placeIfNeeded(task)
+        }
         save()
     }
 
@@ -256,11 +306,36 @@ struct ListStore {
         save()
     }
 
-    /// 목록을 지워도 할 일은 남긴다. 목록에서만 빠져 수신함이나 날짜 화면으로 돌아간다.
+    /// '할 일' 기본 목록. 없으면 맨 위에 만든다.
+    @discardableResult
+    func defaultList() -> TaskList {
+        let lists = (try? context.fetch(FetchDescriptor<TaskList>())) ?? []
+        if let list = lists.first(where: \.isDefault) { return list }
+        let list = TaskList(name: TaskList.defaultListName, order: (lists.map(\.order).min() ?? 0) - 1)
+        list.id = TaskList.defaultID
+        context.insert(list)
+        save()
+        return list
+    }
+
+    /// 날짜도 목록도 없는 할 일을 '할 일' 목록에 넣는다. 예전 수신함에 있던 것, 예전 백업에서 가져온 것.
+    func placeUnplacedTasks() {
+        let tasks = (try? context.fetch(FetchDescriptor<TodoTask>())) ?? []
+        let unplaced = tasks.filter { $0.dueDate == nil && $0.listID == nil }
+        guard !unplaced.isEmpty else { return }
+        let id = defaultList().id
+        unplaced.forEach { $0.listID = id }
+        save()
+    }
+
+    /// 목록을 지워도 할 일은 남긴다. 날짜가 있으면 날짜 화면으로, 없으면 '할 일' 목록으로 간다.
+    /// '할 일' 목록은 지우지 않는다.
     func delete(_ list: TaskList) {
+        guard !list.isDefault else { return }
+        defaultList()
         let tasks = (try? context.fetch(FetchDescriptor<TodoTask>())) ?? []
         for task in tasks where task.listID == list.id {
-            task.listID = nil
+            task.listID = task.dueDate == nil ? TaskList.defaultID : nil
         }
         context.delete(list)
         save()
