@@ -110,6 +110,16 @@ struct TaskDetailPanel: View {
 
             PanelDivider()
 
+            DetailField(task.attachments.isEmpty ? "사진" : "사진 \(task.attachments.count)") {
+                AttachmentEditor(
+                    task: task,
+                    onAdd: { store.addAttachments(task, $0) },
+                    onRemove: { store.removeAttachment(task, $0) }
+                )
+            }
+
+            PanelDivider()
+
             DeleteButton(title: "할 일 삭제", action: onDelete)
         }
         .onAppear {

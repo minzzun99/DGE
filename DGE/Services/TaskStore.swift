@@ -89,6 +89,8 @@ struct TaskStore {
         copy.tags = task.tags
         copy.checklist = task.checklist.map { ChecklistItem(title: $0.title) }
         copy.repeatRule = rule
+        // 사진은 파일 이름만 이어받는다. 같은 파일을 함께 가리킨다.
+        copy.attachments = task.attachments
         if let remindAt = task.remindAt {
             // 알림은 같은 시각, 새 날짜로.
             let time = calendar.dateComponents([.hour, .minute], from: remindAt)
@@ -155,6 +157,27 @@ struct TaskStore {
     func removeTag(_ task: TodoTask, _ tag: String) {
         task.tags.removeAll { $0 == tag }
         save()
+    }
+
+    // MARK: - 사진
+
+    func addAttachments(_ task: TodoTask, _ names: [String]) {
+        guard !names.isEmpty else { return }
+        task.attachments.append(contentsOf: names)
+        save()
+    }
+
+    /// 할 일에서만 뺀다. 파일은 다음 실행 때 `AttachmentStore.removeUnused`가 정리한다.
+    func removeAttachment(_ task: TodoTask, _ name: String) {
+        task.attachments.removeAll { $0 == name }
+        save()
+    }
+
+    /// 어떤 할 일도 가리키지 않는 사진 파일을 지운다.
+    /// 할 일을 읽지 못했을 때는 모두 쓰지 않는 것으로 오해할 수 있으니 아무것도 지우지 않는다.
+    func removeUnusedAttachments() {
+        guard let tasks = try? context.fetch(FetchDescriptor<TodoTask>()) else { return }
+        AttachmentStore.removeUnused(keeping: Set(tasks.flatMap(\.attachments)))
     }
 
     // MARK: - 지우기
