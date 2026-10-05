@@ -37,8 +37,6 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
         switch appState.selection {
-        case .inbox:
-            InboxView(focusRequest: appState.newTaskRequest)
         case .today:
             TodayView(focusRequest: appState.newTaskRequest)
         case .upcoming:
@@ -91,6 +89,7 @@ struct RootView: View {
 
     /// 첫 실행이면 기본 목록을 넣어주고,
     /// 영어로 만들어 두었던 초기 목록은 한 번만 한국어로 바꿔준다.
+    /// '할 일' 목록이 없으면 만들고, 예전 수신함에 있던 할 일을 그리로 옮긴다.
     private func prepareDefaultLists() {
         if lists.isEmpty {
             for (index, name) in TaskList.defaultNames.enumerated() {
@@ -104,5 +103,7 @@ struct RootView: View {
             }
         }
         TaskStore(context: context).save()
+        ListStore(context: context).placeUnplacedTasks()
+        ListStore(context: context).defaultList()
     }
 }

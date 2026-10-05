@@ -153,13 +153,17 @@ private struct QuickEntryView: View {
         }
     }
 
+    private func listName(for task: TodoTask) -> String {
+        lists.first { $0.id == task.listID }?.name ?? TaskList.defaultListName
+    }
+
     private func submit() {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
             onClose()
             return
         }
         guard let task = TaskStore(context: context).create(parsed) else { return }
-        let destination = task.dueDate.map { $0.dgeDayTitle } ?? "수신함"
+        let destination = task.dueDate.map { $0.dgeDayTitle } ?? listName(for: task)
         lastAdded = "‘\(task.displayTitle)’ → \(destination)"
         text = ""
         // 들어간 곳을 잠깐 보여주고 닫는다. 그 사이 또 적기 시작하면 열어 둔다.

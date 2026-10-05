@@ -31,7 +31,7 @@ struct DGECommands: Commands {
         }
 
         CommandMenu("이동") {
-            Button("수신함") { appState.selection = .inbox }
+            Button("할 일 목록") { appState.selection = .list(TaskList.defaultID) }
                 .keyboardShortcut("1", modifiers: .command)
             Button("오늘") { appState.selection = .today }
                 .keyboardShortcut("2", modifiers: .command)

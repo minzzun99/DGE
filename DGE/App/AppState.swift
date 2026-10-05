@@ -40,7 +40,7 @@ final class AppState {
             selection = .today
             // 화면이 먼저 바뀌어야 새 입력창이 신호를 받는다.
             Task { newTaskRequest += 1 }
-        case .inbox, .today, .upcoming, .list, .tag:
+        case .today, .upcoming, .list, .tag:
             newTaskRequest += 1
         case .notes:
             noteRequest = .new
@@ -81,8 +81,7 @@ final class AppState {
         if task.isCompleted { return .completed }
         if task.isDueToday { return .today }
         if task.isUpcoming { return .upcoming }
-        if let listID = task.listID { return .list(listID) }
-        return .inbox
+        return .list(task.listID ?? TaskList.defaultID)
     }
 
     // MARK: - 안내

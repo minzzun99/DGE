@@ -94,11 +94,6 @@ extension TodoTask {
         return Calendar.current.startOfDay(for: dueDate) <= Date.startOfToday
     }
 
-    /// 아직 언제 할지 정하지 않은 할 일.
-    var isInbox: Bool {
-        dueDate == nil
-    }
-
     var isOverdue: Bool {
         guard let dueDate, !isCompleted else { return false }
         return Calendar.current.startOfDay(for: dueDate) < Date.startOfToday

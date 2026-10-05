@@ -174,7 +174,7 @@ struct CommandPalette: View {
         var createGroup: Group?
         if !q.isEmpty {
             let parsed = smartInput ? QuickAddParser.parse(q, listNames: lists.map(\.name)) : ParsedTask(title: q)
-            var detail = parsed.dueDate?.dgeDayTitle ?? "수신함"
+            var detail = parsed.dueDate?.dgeDayTitle ?? parsed.listName ?? defaultListName
             if !parsed.tags.isEmpty { detail += " · " + parsed.tags.map { "#\($0)" }.joined(separator: " ") }
             createGroup = Group(id: "create", title: "새로 만들기", entries: [
                 Entry(id: "create", icon: "plus", title: "‘\(parsed.title)’ 할 일 만들기", detail: detail) {
@@ -244,9 +244,15 @@ struct CommandPalette: View {
         return groups
     }
 
+    private var defaultListName: String {
+        lists.first(where: \.isDefault)?.name ?? TaskList.defaultListName
+    }
+
     private var navigationEntries: [Entry] {
         var entries = [
-            Entry(id: "go-inbox", icon: "tray", title: "수신함", keys: "⌘1") { appState.selection = .inbox },
+            Entry(id: "go-tasks", icon: "square.stack", title: defaultListName, keys: "⌘1") {
+                appState.selection = .list(TaskList.defaultID)
+            },
             Entry(id: "go-today", icon: "sun.max", title: "오늘", keys: "⌘2") { appState.selection = .today },
             Entry(id: "go-upcoming", icon: "calendar.badge.clock", title: "예정", keys: "⌘3") { appState.selection = .upcoming },
             Entry(id: "go-calendar", icon: "calendar", title: "캘린더", keys: "⌘4") { appState.selection = .calendar },

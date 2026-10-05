@@ -90,14 +90,15 @@ enum AppearanceSetting: String, CaseIterable, Identifiable {
 }
 
 enum StartScreen: String, CaseIterable, Identifiable {
-    case today, inbox, upcoming, calendar, notes
+    /// `tasks`는 예전 '수신함' 자리라 저장값을 그대로 둔다.
+    case today, tasks = "inbox", upcoming, calendar, notes
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .today: "오늘"
-        case .inbox: "수신함"
+        case .tasks: TaskList.defaultListName
         case .upcoming: "예정"
         case .calendar: "캘린더"
         case .notes: "메모"
@@ -107,7 +108,7 @@ enum StartScreen: String, CaseIterable, Identifiable {
     var item: SidebarItem {
         switch self {
         case .today: .today
-        case .inbox: .inbox
+        case .tasks: .list(TaskList.defaultID)
         case .upcoming: .upcoming
         case .calendar: .calendar
         case .notes: .notes

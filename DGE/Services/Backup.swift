@@ -183,6 +183,8 @@ struct BackupService {
         newEvents.forEach { context.insert($0.makeEvent()) }
         newNotes.forEach { context.insert($0.makeNote()) }
         try context.save()
+        // 수신함이 있던 때의 백업이면 날짜 없는 할 일을 '할 일' 목록에 넣는다.
+        ListStore(context: context).placeUnplacedTasks()
         return (newLists.count, newTasks.count, newEvents.count, newNotes.count)
     }
 }

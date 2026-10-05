@@ -17,6 +17,7 @@ struct ListView: View {
         TaskListScreen(
             title: list.name,
             icon: "square.stack",
+            subtitle: list.isDefault ? "날짜를 정하지 않은 할 일도 여기에 모입니다" : nil,
             sections: [TaskSection(id: "list", tasks: tasks)],
             emptyIcon: "square.stack",
             emptyTitle: "비어 있습니다",
