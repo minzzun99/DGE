@@ -2,7 +2,7 @@ import SwiftUI
 import QuickLook
 import UniformTypeIdentifiers
 
-/// 할 일에 붙인 사진. 고르기 · 붙여넣기 · 끌어놓기로 넣고, 누르면 훑어보기로 크게 본다.
+/// 할 일에 붙인 사진. 고르기 · ⌘V · 끌어놓기로 넣고, 누르면 훑어보기로 크게 본다.
 struct AttachmentEditor: View {
     let task: TodoTask
     let onAdd: ([String]) -> Void
@@ -31,8 +31,7 @@ struct AttachmentEditor: View {
 
             HStack(spacing: 6) {
                 ChipButton(title: "사진 추가", icon: "photo.badge.plus", action: pickFiles)
-                ChipButton(title: "붙여넣기", icon: "doc.on.clipboard", help: "클립보드의 사진이나 스크린샷", action: paste)
-                Text("끌어다 놓아도 됩니다")
+                Text("⌘V로 붙여넣거나 끌어다 놓아도 됩니다")
                     .font(DGE.Typography.meta)
                     .foregroundStyle(DGE.Palette.tertiaryText)
             }
@@ -56,6 +55,7 @@ struct AttachmentEditor: View {
             return !names.isEmpty
         } isTargeted: { isTargeted = $0 }
         .quickLookPreview($previewURL, in: urls)
+        .background(ImagePasteMonitor(onPaste: paste))
     }
 
     private func pickFiles() {
@@ -68,9 +68,7 @@ struct AttachmentEditor: View {
     }
 
     private func paste() {
-        let names = AttachmentStore.importPasteboard()
-        if names.isEmpty { NSSound.beep() }
-        add(names)
+        add(AttachmentStore.importPasteboard())
     }
 
     private func add(_ names: [String]) {
@@ -142,5 +140,56 @@ private struct AttachmentThumbnail: View {
                 image = await AttachmentStore.thumbnail(for: name, maxPixel: 240)
                 isMissing = image == nil
             }
+    }
+}
+
+/// 상세 패널이 열린 창에서 ⌘V를 지켜보다가, 클립보드에 사진이 있으면 이 할 일에 붙인다.
+/// 사진 칸에 포커스가 없어도(제목을 고치는 중이거나 목록을 고른 채여도) 바로 붙게 하려고 키 입력을 직접 본다.
+private struct ImagePasteMonitor: NSViewRepresentable {
+    let onPaste: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.onPaste = onPaste
+        context.coordinator.install(watching: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onPaste = onPaste
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    final class Coordinator {
+        var onPaste: (() -> Void)?
+        private var monitor: Any?
+
+        /// 한글 입력 중에도 잡히도록 글자 대신 V 키 자리(keyCode 9)로 본다.
+        private static let vKeyCode: UInt16 = 9
+
+        func install(watching view: NSView) {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak view] event in
+                // 이 패널이 있는 창의 ⌘V만. 빠른 입력 창 같은 다른 창은 건드리지 않는다.
+                guard let self, let window = view?.window, event.window === window,
+                      event.keyCode == Self.vKeyCode,
+                      event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                      AttachmentStore.pasteboardWantsAttachment(editingText: window.firstResponder is NSText)
+                else { return event }
+                self.onPaste?()
+                return nil
+            }
+        }
+
+        func remove() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+        }
+
+        deinit { remove() }
     }
 }

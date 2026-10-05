@@ -46,16 +46,25 @@ enum AttachmentStore {
 
     /// 클립보드에 이미지 파일이 있으면 그 파일을, 없으면 이미지 자체를 넣는다.
     static func importPasteboard(_ pasteboard: NSPasteboard = .general) -> [String] {
-        let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        let fromFiles = fileURLs.compactMap { try? importFile(at: $0) }
+        let fromFiles = imageFileURLs(in: pasteboard).compactMap { try? importFile(at: $0) }
         if !fromFiles.isEmpty { return fromFiles }
 
         let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage] ?? []
         return images.compactMap { try? importImage($0) }
     }
 
-    static func pasteboardHasImage(_ pasteboard: NSPasteboard = .general) -> Bool {
-        pasteboard.canReadObject(forClasses: [NSImage.self], options: nil)
+    /// ⌘V를 사진 붙이기로 받을지.
+    /// Finder에서 복사한 사진 파일은 언제나 사진으로 받는다. 스크린샷 같은 이미지는,
+    /// 글을 쓰는 중이고 클립보드에 글자도 함께 있으면 글자 붙여넣기를 막지 않는다.
+    static func pasteboardWantsAttachment(editingText: Bool, _ pasteboard: NSPasteboard = .general) -> Bool {
+        if !imageFileURLs(in: pasteboard).isEmpty { return true }
+        guard pasteboard.canReadObject(forClasses: [NSImage.self], options: nil) else { return false }
+        return !(editingText && pasteboard.canReadObject(forClasses: [NSString.self], options: nil))
+    }
+
+    private static func imageFileURLs(in pasteboard: NSPasteboard) -> [URL] {
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter { UTType(filenameExtension: $0.pathExtension.lowercased())?.conforms(to: .image) ?? false }
     }
 
     /// 백업 폴더에서 가져올 때. 같은 이름의 파일이 이미 있으면 그대로 둔다.
