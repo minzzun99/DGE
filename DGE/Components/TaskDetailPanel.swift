@@ -34,6 +34,16 @@ struct TaskDetailPanel: View {
             VStack(alignment: .leading, spacing: 2) {
                 PropertyRow("상태", icon: "circle.dashed") { status }
 
+                if task.isCompleted {
+                    PropertyRow("완료한 날", icon: "checkmark.circle") {
+                        DatePicker("", selection: completedDateBinding, in: ...Date(), displayedComponents: .date)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .fixedSize()
+                            .help("실제로 끝낸 날로 바꿉니다")
+                    }
+                }
+
                 PropertyRow("날짜", icon: "calendar") {
                     VStack(alignment: .leading, spacing: 6) {
                         if task.dueDate != nil {
@@ -237,6 +247,17 @@ struct TaskDetailPanel: View {
         Binding(
             get: { task.dueDate ?? Date.startOfToday },
             set: { setDueDate($0) }
+        )
+    }
+
+    private var completedDateBinding: Binding<Date> {
+        Binding(
+            get: { task.completedAt ?? Date() },
+            set: { day in
+                withAnimation(DGE.Motion.list) {
+                    store.setCompletedDate(task, day)
+                }
+            }
         )
     }
 
