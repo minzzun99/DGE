@@ -65,6 +65,20 @@ struct TaskStore {
         save()
     }
 
+    /// 끝낸 날을 바꾼다. 체크를 늦게 눌러 '오늘'로 남은 기록을 실제로 한 날로 돌려놓을 때 쓴다.
+    /// 시각은 원래 체크한 시각을 유지하고, 앞으로의 시각이 되면 지금으로 맞춘다.
+    func setCompletedDate(_ task: TodoTask, _ day: Date) {
+        guard task.isCompleted else { return }
+        let calendar = Calendar.current
+        let time = calendar.dateComponents([.hour, .minute, .second], from: task.completedAt ?? Date())
+        let date = calendar.date(
+            bySettingHour: time.hour ?? 12, minute: time.minute ?? 0, second: time.second ?? 0,
+            of: calendar.startOfDay(for: day)
+        ) ?? day
+        task.completedAt = min(date, Date())
+        save()
+    }
+
     /// 반복하는 할 일을 끝내면 다음 차례를 새로 만든다.
     /// 끝낸 것은 기록으로 남기고, 반복은 새 할 일이 이어받는다.
     private func scheduleNext(after task: TodoTask, rule: RepeatRule) {
